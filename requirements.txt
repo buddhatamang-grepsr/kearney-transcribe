@@ -1,0 +1,4 @@
+faster-whisper==1.2.1
+numpy
+requests>=2.31
+boto3>=1.34
