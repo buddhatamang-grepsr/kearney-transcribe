@@ -1,4 +1,7 @@
 faster-whisper==1.2.1
 numpy
 requests>=2.31
-boto3>=1.34
+boto3>=1.34  # only for an s3:// --output
+# CUDA 12 libraries for CTranslate2 on the GPU (Linux only); transcribe.py puts them on LD_LIBRARY_PATH
+nvidia-cublas-cu12==12.9.2.10; sys_platform == "linux"
+nvidia-cudnn-cu12>=9,<10; sys_platform == "linux"

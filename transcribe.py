@@ -14,6 +14,7 @@ status is Success, No speech or Failed. One bad video never stops the job.
 """
 
 import argparse
+import importlib.util
 import json
 import logging
 import os
@@ -25,9 +26,37 @@ import time
 import zipfile
 from pathlib import Path
 
-import numpy as np
-import requests
-from faster_whisper import WhisperModel
+
+def ensure_cuda_libs():
+    """Puts the pip-installed CUDA libraries (nvidia-cublas-cu12, nvidia-cudnn-cu12) on
+    LD_LIBRARY_PATH by restarting this process once. CTranslate2 loads libcublas.so.12 and
+    cuDNN through the dynamic loader, which only reads LD_LIBRARY_PATH at process start;
+    without this the GPU run fails with "libcublas.so.12 is not found". No-op where the
+    packages are absent (CPU machines, macOS)."""
+    if os.environ.get("KT_CUDA_LIBS_SET"):
+        return
+    folders = []
+    for package in ("nvidia.cublas", "nvidia.cudnn"):
+        try:
+            spec = importlib.util.find_spec(package)
+        except ModuleNotFoundError:
+            spec = None
+        for location in (spec.submodule_search_locations or []) if spec else []:
+            lib = os.path.join(location, "lib")
+            if os.path.isdir(lib):
+                folders.append(lib)
+    if not folders:
+        return
+    env = dict(os.environ, KT_CUDA_LIBS_SET="1")
+    env["LD_LIBRARY_PATH"] = os.pathsep.join(folders + [p for p in [os.environ.get("LD_LIBRARY_PATH", "")] if p])
+    os.execve(sys.executable, [sys.executable] + sys.argv, env)
+
+
+ensure_cuda_libs()
+
+import numpy as np  # noqa: E402  (after the CUDA library setup above)
+import requests  # noqa: E402
+from faster_whisper import WhisperModel  # noqa: E402
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
 DOWNLOAD_CHUNK = 1024 * 1024
